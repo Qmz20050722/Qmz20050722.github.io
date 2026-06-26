@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="description" content="主播试用期考勤与失误记录管理系统">
+<meta name="theme-color" content="#07c160">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<title>主播考勤与失误统计</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: #f5f5f5;
+    color: #333;
+    line-height: 1.5;
+    font-size: 16px;
+  }
+  .container { max-width: 480px; margin: 0 auto; min-height: 100vh; background: #f5f5f5; position: relative; }
+  .hidden { display: none !important; }
+
+  /* 头部 */
+  .header {
+    background: linear-gradient(135deg, #07c160 0%, #05a050 100%);
+    color: white;
+    padding: 20px 16px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  .header h1 { font-size: 20px; font-weight: 600; letter-spacing: 1px; }
+  .header .subtitle { font-size: 13px; opacity: 0.9; margin-top: 4px; }
+  .back-btn {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.2);
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  /* 页面内容 */
+  .page { padding: 16px; display: none; }
+  .page.active { display: block; }
+
+  /* 卡片 */
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .card-title .right { font-size: 13px; color: #888; font-weight: normal; }
+
+  /* 按钮 */
+  .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    font-size: 15px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+    font-weight: 500;
+  }
+  .btn-block { display: block; width: 100%; }
+  .btn-primary { background: #07c160; color: white; }
+  .btn-primary:active { background: #06ad56; }
+  .btn-danger { background: #fa5151; color: white; }
+  .btn-danger:active { background: #e04b4b; }
+  .btn-default { background: #f2f2f2; color: #333; }
+  .btn-default:active { background: #e0e0e0; }
+  .btn-sm { padding: 6px 12px; font-size: 13px; border-radius: 6px; }
+  .btn-link { background: none; color: #07c160; padding: 0; font-size: 14px; }
+
+  /* 表单 */
+  .form-group { margin-bottom: 16px; }
+  .form-label { display: block; font-size: 14px; color: #666; margin-bottom: 6px; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 15px;
+    background: #fafafa;
+    -webkit-appearance: none;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none;
+    border-color: #07c160;
+    background: white;
+  }
+  .form-textarea { min-height: 80px; resize: vertical; }
+
+  /* 列表 */
+  .list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .list-item:last-child { border-bottom: none; }
+  .list-item-info { flex: 1; }
+  .list-item-title { font-size: 16px; font-weight: 500; margin-bottom: 2px; }
+  .list-item-desc { font-size: 13px; color: #888; }
+  .list-item-actions { display: flex; gap: 8px; }
+
+  /* 首页 */
+  .home-logo {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #07c160, #05a050);
+    border-radius: 24px;
+    margin: 40px auto 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 36px;
+    box-shadow: 0 4px 16px rgba(7,193,96,0.3);
+  }
+  .home-title { text-align: center; font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  .home-subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 40px; }
+  .home-btns { display: flex; flex-direction: column; gap: 12px; padding: 0 20px; }
+  .home-btn {
+    padding: 16px;
+    border-radius: 12px;
+    border: none;
+    background: white;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+  }
+  .home-btn:active { transform: scale(0.98); }
+  .home-btn-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+  .home-btn-content { flex: 1; }
+  .home-btn-title { font-size: 17px; font-weight: 600; color: #333; }
+  .home-btn-desc { font-size: 13px; color: #888; margin-top: 2px; }
+
+  /* 统计卡片 */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+  .stat-box {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 14px 8px;
+    text-align: center;
+  }
+  .stat-number { font-size: 24px; font-weight: 700; color: #07c160; }
+  .stat-label { font-size: 12px; color: #888; margin-top: 4px; }
+  .stat-number.warning { color: #fa5151; }
+  .stat-number.info { color: #1989fa; }
+
+  /* 日历 */
+  .calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+  .calendar-month { font-size: 16px; font-weight: 600; }
+  .calendar-nav { display: flex; gap: 8px; }
+  .calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+  }
+  .calendar-day-header {
+    text-align: center;
+    font-size: 12px;
+    color: #888;
+    padding: 8px 0;
+  }
+  .calendar-day {
+    aspect-ratio: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fafafa;
+    position: relative;
+  }
+  .calendar-day.has-data { background: #e8f5e9; cursor: pointer; }
+  .calendar-day.has-mistake { background: #ffebee; }
+  .calendar-day.today { border: 2px solid #07c160; }
+  .calendar-day .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    position: absolute;
+    bottom: 4px;
+  }
+  .dot-green { background: #07c160; }
+  .dot-red { background: #fa5151; }
+
+  /* 记录列表 */
+  .record-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #f5f5f5;
+  }
+  .record-date {
+    width: 50px;
+    text-align: center;
+    flex-shrink: 0;
+  }
+  .record-day { font-size: 20px; font-weight: 700; color: #333; }
+  .record-weekday { font-size: 11px; color: #888; }
+  .record-content { flex: 1; }
+  .record-status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  .status-present { background: #e8f5e9; color: #07c160; }
+  .status-absent { background: #ffebee; color: #fa5151; }
+  .status-late { background: #fff3e0; color: #ff9800; }
+  .status-leave { background: #e3f2fd; color: #1989fa; }
+  .record-mistakes { font-size: 13px; color: #666; }
+  .record-note { font-size: 12px; color: #999; margin-top: 2px; }
+
+  /* 标签 */
+  .tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-right: 4px;
+    margin-bottom: 4px;
+  }
+  .tag-red { background: #ffebee; color: #c62828; }
+  .tag-orange { background: #fff3e0; color: #e65100; }
+  .tag-green { background: #e8f5e9; color: #2e7d32; }
+
+  /* 空状态 */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: #888;
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.5; }
+
+  /* 弹窗 */
+  .modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 16px;
+    width: 100%;
+    max-width: 360px;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-header {
+    padding: 16px;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 17px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .modal-body { padding: 16px; overflow-y: auto; }
+  .modal-footer {
+    padding: 12px 16px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    gap: 10px;
+  }
+  .modal-footer .btn { flex: 1; }
+
+  /* 底部导航 */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0;
+    z-index: 100;
+    max-width: 480px;
+    margin: 0 auto;
+  }
+  .nav-item {
+    flex: 1;
+    text-align: center;
+    color: #888;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .nav-item.active { color: #07c160; }
+  .nav-icon { font-size: 22px; display: block; margin-bottom: 2px; }
+
+  /* 分享提示 */
+  .share-tip {
+    background: #e8f5e9;
+    border: 1px solid #c8e6c9;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 13px;
+    color: #2e7d32;
+    margin-bottom: 12px;
+    word-break: break-all;
+  }
+
+  /* 进度条 */
+  .progress-bar {
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #07c160, #05a050);
+    border-radius: 4px;
+    transition: width 0.3s;
+  }
+
+  /* 开关 */
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 48px;
+    height: 28px;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #ccc;
+    border-radius: 28px;
+    transition: 0.3s;
+  }
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: 0.3s;
+  }
+  input:checked + .slider { background: #07c160; }
+  input:checked + .slider:before { transform: translateX(20px); }
+
+  /* 添加主播快捷选择 */
+  .mistake-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .mistake-chip {
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid #e0e0e0;
+    font-size: 13px;
+    cursor: pointer;
+    background: white;
+    user-select: none;
+  }
+  .mistake-chip.selected {
+    border-color: #07c160;
+    background: #e8f5e9;
+    color: #2e7d32;
+  }
+
+  .toast {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.75);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 300;
+    display: none;
+  }
+  .toast.show { display: block; }
+
+  /* 底部占位 */
+  .pb-60 { padding-bottom: 60px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 头部 -->
+  <div class="header" id="header">
+    <button class="back-btn hidden" id="backBtn" onclick="goBack()">← 返回</button>
+    <h1 id="headerTitle">主播考勤统计</h1>
+    <div class="subtitle" id="headerSubtitle">试用期管理与记录</div>
+  </div>
+
+  <!-- 首页 -->
+  <div class="page active" id="pageHome">
+    <div class="home-logo">📊</div>
+    <div class="home-title">主播考勤统计</div>
+    <div class="home-subtitle">试用期出勤与失误记录管理</div>
+    <div class="home-btns">
+      <button class="home-btn" onclick="showAdminLogin()">
+        <div class="home-btn-icon" style="background:#e8f5e9;">🔐</div>
+        <div class="home-btn-content">
+          <div class="home-btn-title">管理员入口</div>
+          <div class="home-btn-desc">添加主播、记录考勤与失误</div>
+        </div>
+        <div style="color:#ccc;">›</div>
+      </button>
+      <button class="home-btn" onclick="showAnchorSelect()">
+        <div class="home-btn-icon" style="background:#e3f2fd;">👤</div>
+        <div class="home-btn-content">
+          <div class="home-btn-title">主播查询</div>
+          <div class="home-btn-desc">查看个人考勤与试用进度</div>
+        </div>
+        <div style="color:#ccc;">›</div>
+      </button>
+    </div>
+    <div style="text-align:center; margin-top:30px; padding:0 20px;">
+      <button class="btn btn-link" onclick="showDataManage()">⚙️ 数据备份与恢复</button>
+    </div>
+  </div>
+
+  <!-- 管理员登录 -->
+  <div class="page" id="pageAdminLogin">
+    <div class="card" style="margin-top:40px;">
+      <div class="card-title">🔐 管理员登录</div>
+      <div class="form-group">
+        <label class="form-label">管理密码</label>
+        <input type="password" class="form-input" id="adminPassword" placeholder="请输入管理密码" onkeypress="if(event.key==='Enter')doAdminLogin()">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="doAdminLogin()">登录</button>
+      <div style="text-align:center; margin-top:12px; font-size:13px; color:#888;">
+        默认密码: <span id="defaultPwdHint">123456</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 管理员主页 -->
+  <div class="page pb-60" id="pageAdmin">
+    <div class="card">
+      <div class="card-title">
+        📋 主播列表
+        <button class="btn btn-primary btn-sm" onclick="showAddAnchor()">+ 添加主播</button>
+      </div>
+      <div id="anchorList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 整体概览</div>
+      <div class="stats-grid" id="adminStats"></div>
+    </div>
+  </div>
+
+  <!-- 主播详情（管理员） -->
+  <div class="page pb-60" id="pageAnchorDetail">
+    <div id="anchorDetailHeader"></div>
+    <div class="card">
+      <div class="card-title">
+        📅 试用期进度
+        <span class="right" id="trialDaysText"></span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="trialProgress"></div></div>
+      <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:12px; color:#888;">
+        <span id="trialStart"></span>
+        <span id="trialEnd"></span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 统计数据</div>
+      <div class="stats-grid" id="anchorStats"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        📆 考勤日历
+        <div class="calendar-nav">
+          <button class="btn btn-default btn-sm" onclick="changeMonth(-1)">‹</button>
+          <span class="calendar-month" id="calendarMonth"></span>
+          <button class="btn btn-default btn-sm" onclick="changeMonth(1)">›</button>
+        </div>
+      </div>
+      <div class="calendar-grid" id="calendarGrid"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        📝 记录明细
+        <button class="btn btn-primary btn-sm" onclick="showAddRecord()">+ 添加记录</button>
+      </div>
+      <div id="recordList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔗 分享链接</div>
+      <div class="share-tip">
+        <div style="margin-bottom:6px; font-weight:600;">以下链接可分享给该主播或相关人员：</div>
+        <div id="shareUrl" style="word-break:break-all;"></div>
+      </div>
+      <button class="btn btn-default btn-block" onclick="copyShareLink()">📋 复制分享链接</button>
+    </div>
+    <div style="height:20px;"></div>
+  </div>
+
+  <!-- 添加/编辑主播 -->
+  <div class="page" id="pageAddAnchor">
+    <div class="card">
+      <div class="card-title" id="anchorFormTitle">添加主播</div>
+      <input type="hidden" id="editAnchorId">
+      <div class="form-group">
+        <label class="form-label">主播姓名 *</label>
+        <input type="text" class="form-input" id="anchorName" placeholder="请输入主播姓名">
+      </div>
+      <div class="form-group">
+        <label class="form-label">试用期开始日期 *</label>
+        <input type="date" class="form-input" id="anchorStartDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">试用期结束日期 *</label>
+        <input type="date" class="form-input" id="anchorEndDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <input type="text" class="form-input" id="anchorNote" placeholder="可选填">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="saveAnchor()">保存</button>
+      <button class="btn btn-default btn-block" onclick="goBack()" style="margin-top:10px;">取消</button>
+    </div>
+  </div>
+
+  <!-- 添加记录 -->
+  <div class="page" id="pageAddRecord">
+    <div class="card">
+      <div class="card-title">添加考勤记录</div>
+      <input type="hidden" id="recordAnchorId">
+      <div class="form-group">
+        <label class="form-label">日期 *</label>
+        <input type="date" class="form-input" id="recordDate">
+      </div>
+      <div class="form-group">
+        <label class="form-label">出勤状态 *</label>
+        <select class="form-select" id="recordAttendance">
+          <option value="present">✅ 正常出勤</option>
+          <option value="absent">❌ 缺勤</option>
+          <option value="late">⚠️ 迟到/早退</option>
+          <option value="leave">🏥 请假</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">失误记录（多选）</label>
+        <div class="mistake-options">
+          <span class="mistake-chip" onclick="toggleMistake(this)">迟到</span>
+          <span class="mistake-chip" onclick="toggleMistake(this)">早退</span>
+          <span class="mistake-chip" onclick="toggleMistake(this)">旷播</span>
+          <span class="mistake-chip" onclick="toggleMistake(this)">未按时开播</span>
+          <span class="mistake-chip" onclick="toggleMistake(this)">直播违规</span>
+          <span class="mistake-chip" onclick="toggleMistake(this)">着装不规范</span>
+          <span class="mistake-chip" onclick="toggleMistake(this)">态度问题</span>
+          <span class="mistake-chip" onclick="toggleMistake(this)">其他</span>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">备注</label>
+        <textarea class="form-textarea" id="recordNote" placeholder="可选填详细说明"></textarea>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="saveRecord()">保存记录</button>
+      <button class="btn btn-default btn-block" onclick="goBack()" style="margin-top:10px;">取消</button>
+    </div>
+  </div>
+
+  <!-- 主播选择 -->
+  <div class="page" id="pageAnchorSelect">
+    <div class="card">
+      <div class="card-title">👤 选择主播查看</div>
+      <div id="anchorSelectList"></div>
+    </div>
+  </div>
+
+  <!-- 主播查看页（自己看） -->
+  <div class="page pb-60" id="pageAnchorView">
+    <div id="anchorViewContent"></div>
+  </div>
+
+  <!-- 分享页（通过链接打开） -->
+  <div class="page pb-60" id="pageShare">
+    <div id="shareContent"></div>
+  </div>
+
+  <!-- 数据管理 -->
+  <div class="page" id="pageDataManage">
+    <div class="card">
+      <div class="card-title">💾 数据备份</div>
+      <p style="font-size:14px; color:#666; margin-bottom:12px;">将当前所有数据导出为JSON文件，可用于备份或迁移。</p>
+      <button class="btn btn-primary btn-block" onclick="exportData()">导出数据到文件</button>
+    </div>
+    <div class="card">
+      <div class="card-title">📥 数据恢复</div>
+      <p style="font-size:14px; color:#666; margin-bottom:12px;">选择之前导出的JSON文件恢复数据。注意：这会覆盖当前所有数据！</p>
+      <input type="file" class="form-input" id="importFile" accept=".json" onchange="importData(this)">
+    </div>
+    <div class="card">
+      <div class="card-title">⚠️ 危险操作</div>
+      <button class="btn btn-danger btn-block" onclick="clearAllData()">清空所有数据</button>
+    </div>
+  </div>
+
+  <!-- 底部导航（仅管理员页面显示） -->
+  <div class="bottom-nav hidden" id="bottomNav">
+    <div class="nav-item active" onclick="showPage('pageAdmin', true)">
+      <span class="nav-icon">📋</span>
+      <span>主播</span>
+    </div>
+    <div class="nav-item" onclick="showPage('pageDataManage', true)">
+      <span class="nav-icon">⚙️</span>
+      <span>设置</span>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ==================== 数据存储 ====================
+const STORAGE_KEY = 'anchor_attendance_data';
+const SETTINGS_KEY = 'anchor_attendance_settings';
+
+let data = { anchors: [], records: [] };
+let settings = { adminPassword: '123456' };
+let currentAnchorId = null;
+let currentMonth = new Date();
+let pageStack = [];
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) data = JSON.parse(raw);
+  } catch(e) {}
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (raw) settings = JSON.parse(raw);
+  } catch(e) {}
+}
+
+function saveData() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+}
+
+function initData() {
+  loadData();
+  // 默认数据演示（首次使用）
+  if (data.anchors.length === 0) {
+    // 不预填，保持空白
+  }
+}
+
+// ==================== 页面导航 ====================
+function showPage(pageId, isNav = false) {
+  if (!isNav) {
+    const current = document.querySelector('.page.active');
+    if (current) pageStack.push(current.id);
+  } else {
+    pageStack = [];
+  }
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(pageId).classList.add('active');
+  updateHeader(pageId);
+  updateBottomNav(pageId);
+  window.scrollTo(0, 0);
+}
+
+function goBack() {
+  if (pageStack.length > 0) {
+    const prev = pageStack.pop();
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(prev).classList.add('active');
+    updateHeader(prev);
+    updateBottomNav(prev);
+  } else {
+    showPage('pageHome', true);
+    pageStack = [];
+  }
+}
+
+function updateHeader(pageId) {
+  const backBtn = document.getElementById('backBtn');
+  const title = document.getElementById('headerTitle');
+  const subtitle = document.getElementById('headerSubtitle');
+
+  const titles = {
+    pageHome: ['主播考勤统计', '试用期管理与记录'],
+    pageAdminLogin: ['管理员登录', ''],
+    pageAdmin: ['管理员后台', '主播管理与记录'],
+    pageAnchorDetail: ['主播详情', ''],
+    pageAddAnchor: ['添加主播', ''],
+    pageAddRecord: ['添加记录', ''],
+    pageAnchorSelect: ['主播查询', '选择要查看的主播'],
+    pageAnchorView: ['我的考勤', ''],
+    pageShare: ['考勤详情', ''],
+    pageDataManage: ['数据管理', '备份与恢复']
+  };
+
+  const t = titles[pageId] || ['主播考勤统计', ''];
+  title.textContent = t[0];
+  subtitle.textContent = t[1];
+
+  const noBack = ['pageHome', 'pageAdmin'];
+  backBtn.classList.toggle('hidden', noBack.includes(pageId));
+}
+
+function updateBottomNav(pageId) {
+  const nav = document.getElementById('bottomNav');
+  nav.classList.toggle('hidden', pageId !== 'pageAdmin' && pageId !== 'pageDataManage');
+  document.querySelectorAll('.nav-item').forEach((item, idx) => {
+    item.classList.remove('active');
+    if ((pageId === 'pageAdmin' && idx === 0) || (pageId === 'pageDataManage' && idx === 1)) {
+      item.classList.add('active');
+    }
+  });
+}
+
+// ==================== 首页 ====================
+function showAdminLogin() {
+  document.getElementById('adminPassword').value = '';
+  showPage('pageAdminLogin');
+}
+
+function doAdminLogin() {
+  const pwd = document.getElementById('adminPassword').value;
+  if (pwd === settings.adminPassword) {
+    pageStack = [];
+    showPage('pageAdmin', true);
+    renderAnchorList();
+    renderAdminStats();
+  } else {
+    showToast('密码错误');
+  }
+}
+
+function showAnchorSelect() {
+  renderAnchorSelectList();
+  showPage('pageAnchorSelect');
+}
+
+// ==================== 主播管理 ====================
+function renderAnchorList() {
+  const container = document.getElementById('anchorList');
+  if (data.anchors.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div>暂无主播，请点击右上角添加</div></div>';
+    return;
+  }
+  container.innerHTML = data.anchors.map(a => {
+    const stats = getAnchorStats(a.id);
+    return `
+      <div class="list-item" onclick="showAnchorDetail('${a.id}')">
+        <div class="list-item-info">
+          <div class="list-item-title">${escapeHtml(a.name)}</div>
+          <div class="list-item-desc">${a.startDate} 至 ${a.endDate} · 出勤${stats.present}天 · 失误${stats.mistakes}次</div>
+        </div>
+        <div class="list-item-actions" onclick="event.stopPropagation()">
+          <button class="btn btn-primary btn-sm" onclick="showAnchorDetail('${a.id}')">查看</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteAnchor('${a.id}')">删除</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderAdminStats() {
+  const container = document.getElementById('adminStats');
+  const totalAnchors = data.anchors.length;
+  const totalRecords = data.records.length;
+  const totalMistakes = data.records.reduce((sum, r) => sum + (r.mistakes ? r.mistakes.length : 0), 0);
+  container.innerHTML = `
+    <div class="stat-box"><div class="stat-number info">${totalAnchors}</div><div class="stat-label">主播人数</div></div>
+    <div class="stat-box"><div class="stat-number">${totalRecords}</div><div class="stat-label">记录条数</div></div>
+    <div class="stat-box"><div class="stat-number warning">${totalMistakes}</div><div class="stat-label">失误总计</div></div>
+  `;
+}
+
+function showAddAnchor() {
+  document.getElementById('anchorFormTitle').textContent = '添加主播';
+  document.getElementById('editAnchorId').value = '';
+  document.getElementById('anchorName').value = '';
+  document.getElementById('anchorStartDate').value = formatDate(new Date());
+  const end = new Date();
+  end.setMonth(end.getMonth() + 2);
+  document.getElementById('anchorEndDate').value = formatDate(end);
+  document.getElementById('anchorNote').value = '';
+  showPage('pageAddAnchor');
+}
+
+function saveAnchor() {
+  const id = document.getElementById('editAnchorId').value;
+  const name = document.getElementById('anchorName').value.trim();
+  const startDate = document.getElementById('anchorStartDate').value;
+  const endDate = document.getElementById('anchorEndDate').value;
+  const note = document.getElementById('anchorNote').value.trim();
+
+  if (!name || !startDate || !endDate) {
+    showToast('请填写完整信息');
+    return;
+  }
+
+  if (id) {
+    const a = data.anchors.find(x => x.id === id);
+    if (a) {
+      a.name = name; a.startDate = startDate; a.endDate = endDate; a.note = note;
+    }
+  } else {
+    data.anchors.push({ id: generateId(), name, startDate, endDate, note, createdAt: new Date().toISOString() });
+  }
+  saveData();
+  goBack();
+  renderAnchorList();
+  renderAdminStats();
+  showToast('保存成功');
+}
+
+function deleteAnchor(id) {
+  if (!confirm('确定要删除该主播及其所有记录吗？此操作不可恢复！')) return;
+  data.anchors = data.anchors.filter(a => a.id !== id);
+  data.records = data.records.filter(r => r.anchorId !== id);
+  saveData();
+  renderAnchorList();
+  renderAdminStats();
+  showToast('已删除');
+}
+
+// ==================== 主播详情 ====================
+function showAnchorDetail(id) {
+  currentAnchorId = id;
+  currentMonth = new Date();
+  renderAnchorDetail();
+  showPage('pageAnchorDetail');
+}
+
+function renderAnchorDetail() {
+  const anchor = data.anchors.find(a => a.id === currentAnchorId);
+  if (!anchor) return;
+
+  const stats = getAnchorStats(anchor.id);
+  const totalDays = Math.max(1, Math.ceil((new Date(anchor.endDate) - new Date(anchor.startDate)) / (1000*60*60*24)) + 1);
+  const passedDays = Math.min(totalDays, Math.max(0, Math.ceil((new Date() - new Date(anchor.startDate)) / (1000*60*60*24)) + 1));
+  const progress = Math.round((passedDays / totalDays) * 100);
+
+  document.getElementById('anchorDetailHeader').innerHTML = `
+    <div class="card">
+      <div class="list-item" style="padding:0;">
+        <div class="list-item-info">
+          <div class="list-item-title" style="font-size:20px;">${escapeHtml(anchor.name)}</div>
+          <div class="list-item-desc">试用期: ${anchor.startDate} 至 ${anchor.endDate}</div>
+          ${anchor.note ? `<div class="list-item-desc" style="margin-top:4px;">备注: ${escapeHtml(anchor.note)}</div>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('trialProgress').style.width = progress + '%';
+  document.getElementById('trialDaysText').textContent = `第${passedDays}/${totalDays}天 (${progress}%)`;
+  document.getElementById('trialStart').textContent = anchor.startDate;
+  document.getElementById('trialEnd').textContent = anchor.endDate;
+
+  document.getElementById('anchorStats').innerHTML = `
+    <div class="stat-box"><div class="stat-number">${stats.present}</div><div class="stat-label">正常出勤</div></div>
+    <div class="stat-box"><div class="stat-number warning">${stats.absent}</div><div class="stat-label">缺勤</div></div>
+    <div class="stat-box"><div class="stat-number info">${stats.late}</div><div class="stat-label">迟到/早退</div></div>
+    <div class="stat-box"><div class="stat-number">${stats.leave}</div><div class="stat-label">请假</div></div>
+    <div class="stat-box"><div class="stat-number warning">${stats.mistakes}</div><div class="stat-label">失误次数</div></div>
+    <div class="stat-box"><div class="stat-number">${stats.attendanceRate}%</div><div class="stat-label">出勤率</div></div>
+  `;
+
+  renderCalendar();
+  renderRecordList();
+  updateShareLink();
+}
+
+function computeAnchorStats(records) {
+  const present = records.filter(r => r.attendance === 'present').length;
+  const absent = records.filter(r => r.attendance === 'absent').length;
+  const late = records.filter(r => r.attendance === 'late').length;
+  const leave = records.filter(r => r.attendance === 'leave').length;
+  const mistakes = records.reduce((sum, r) => sum + (r.mistakes ? r.mistakes.length : 0), 0);
+  const total = records.length || 1;
+  const attendanceRate = Math.round(((present + leave) / total) * 100);
+  return { present, absent, late, leave, mistakes, attendanceRate, records };
+}
+
+function getAnchorStats(anchorId) {
+  return computeAnchorStats(data.records.filter(r => r.anchorId === anchorId));
+}
+
+// ==================== 日历 ====================
+function renderCalendar() {
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  document.getElementById('calendarMonth').textContent = `${year}年${month + 1}月`;
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const today = formatDate(new Date());
+
+  let html = '';
+  '日一二三四五六'.split('').forEach(d => {
+    html += `<div class="calendar-day-header">${d}</div>`;
+  });
+
+  for (let i = 0; i < firstDay; i++) {
+    html += `<div class="calendar-day"></div>`;
+  }
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const record = data.records.find(r => r.anchorId === currentAnchorId && r.date === dateStr);
+    const hasData = !!record;
+    const hasMistake = hasData && record.mistakes && record.mistakes.length > 0;
+    const isToday = dateStr === today;
+    const cls = ['calendar-day'];
+    if (hasData) cls.push('has-data');
+    if (hasMistake) cls.push('has-mistake');
+    if (isToday) cls.push('today');
+
+    let dot = '';
+    if (hasData) {
+      dot = `<span class="dot ${hasMistake ? 'dot-red' : 'dot-green'}"></span>`;
+    }
+
+    html += `<div class="${cls.join(' ')}" onclick="${hasData ? `showRecordDetail('${record.id}')` : ''}">${d}${dot}</div>`;
+  }
+
+  document.getElementById('calendarGrid').innerHTML = html;
+}
+
+function changeMonth(delta) {
+  currentMonth.setMonth(currentMonth.getMonth() + delta);
+  renderCalendar();
+}
+
+// ==================== 记录 ====================
+function showAddRecord() {
+  document.getElementById('recordAnchorId').value = currentAnchorId;
+  document.getElementById('recordDate').value = formatDate(new Date());
+  document.getElementById('recordAttendance').value = 'present';
+  document.querySelectorAll('.mistake-chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('recordNote').value = '';
+  showPage('pageAddRecord');
+}
+
+function toggleMistake(el) {
+  el.classList.toggle('selected');
+}
+
+function saveRecord() {
+  const anchorId = document.getElementById('recordAnchorId').value;
+  const date = document.getElementById('recordDate').value;
+  const attendance = document.getElementById('recordAttendance').value;
+  const note = document.getElementById('recordNote').value.trim();
+  const mistakes = Array.from(document.querySelectorAll('.mistake-chip.selected')).map(c => c.textContent);
+
+  if (!date) { showToast('请选择日期'); return; }
+
+  const existing = data.records.find(r => r.anchorId === anchorId && r.date === date);
+  if (existing) {
+    if (!confirm('该日期已有记录，是否覆盖？')) return;
+    existing.attendance = attendance;
+    existing.mistakes = mistakes;
+    existing.note = note;
+  } else {
+    data.records.push({ id: generateId(), anchorId, date, attendance, mistakes, note, createdAt: new Date().toISOString() });
+  }
+  saveData();
+  goBack();
+  renderAnchorDetail();
+  showToast('记录已保存');
+}
+
+function renderRecordList() {
+  const container = document.getElementById('recordList');
+  const records = data.records
+    .filter(r => r.anchorId === currentAnchorId)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (records.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📝</div><div>暂无记录</div></div>';
+    return;
+  }
+
+  container.innerHTML = records.map(r => {
+    const d = new Date(r.date);
+    const week = '周日 周一 周二 周三 周四 周五 周六'.split(' ')[d.getDay()];
+    const statusMap = { present: ['正常出勤', 'status-present'], absent: ['缺勤', 'status-absent'], late: ['迟到/早退', 'status-late'], leave: ['请假', 'status-leave'] };
+    const [statusText, statusClass] = statusMap[r.attendance] || ['未知', ''];
+    const mistakeTags = (r.mistakes || []).map(m => `<span class="tag tag-red">${escapeHtml(m)}</span>`).join('');
+    return `
+      <div class="record-item">
+        <div class="record-date">
+          <div class="record-day">${d.getDate()}</div>
+          <div class="record-weekday">${week}</div>
+        </div>
+        <div class="record-content">
+          <span class="record-status ${statusClass}">${statusText}</span>
+          ${mistakeTags ? `<div class="record-mistakes">${mistakeTags}</div>` : ''}
+          ${r.note ? `<div class="record-note">${escapeHtml(r.note)}</div>` : ''}
+        </div>
+        <button class="btn btn-danger btn-sm" style="align-self:center;" onclick="deleteRecord('${r.id}')">删除</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function deleteRecord(id) {
+  if (!confirm('确定删除这条记录？')) return;
+  data.records = data.records.filter(r => r.id !== id);
+  saveData();
+  renderRecordList();
+  renderCalendar();
+  renderAnchorStats();
+}
+
+function showRecordDetail(recordId) {
+  // 在日历上点击日期可查看详情，这里可以扩展
+}
+
+// ==================== 主播查看 ====================
+function renderAnchorSelectList() {
+  const container = document.getElementById('anchorSelectList');
+  if (data.anchors.length === 0) {
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div>暂无可查看的主播</div></div>';
+    return;
+  }
+  container.innerHTML = data.anchors.map(a => `
+    <div class="list-item" onclick="viewAnchor('${a.id}')">
+      <div class="list-item-info">
+        <div class="list-item-title">${escapeHtml(a.name)}</div>
+        <div class="list-item-desc">${a.startDate} 至 ${a.endDate}</div>
+      </div>
+      <div style="color:#07c160;">查看 ›</div>
+    </div>
+  `).join('');
+}
+
+function viewAnchor(id) {
+  const anchor = data.anchors.find(a => a.id === id);
+  if (!anchor) return;
+  renderAnchorView(anchor, 'pageAnchorView');
+  showPage('pageAnchorView');
+}
+
+function renderAnchorView(anchor, pageId, externalRecords) {
+  const records = (externalRecords || data.records)
+    .filter(r => r.anchorId === anchor.id)
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const stats = computeAnchorStats(records);
+  const totalDays = Math.max(1, Math.ceil((new Date(anchor.endDate) - new Date(anchor.startDate)) / (1000*60*60*24)) + 1);
+  const passedDays = Math.min(totalDays, Math.max(0, Math.ceil((new Date() - new Date(anchor.startDate)) / (1000*60*60*24)) + 1));
+  const progress = Math.round((passedDays / totalDays) * 100);
+
+  const statusMap = { present: ['✅ 正常出勤', 'status-present'], absent: ['❌ 缺勤', 'status-absent'], late: ['⚠️ 迟到/早退', 'status-late'], leave: ['🏥 请假', 'status-leave'] };
+
+  const recordsHtml = records.length === 0 ? '<div class="empty-state" style="padding:20px;"><div class="empty-icon">📝</div><div>暂无记录</div></div>' :
+    records.slice(0, 30).map(r => {
+      const d = new Date(r.date);
+      const week = '周日 周一 周二 周三 周四 周五 周六'.split(' ')[d.getDay()];
+      const [statusText, statusClass] = statusMap[r.attendance] || ['未知', ''];
+      const mistakeTags = (r.mistakes || []).map(m => `<span class="tag tag-red">${escapeHtml(m)}</span>`).join('');
+      return `
+        <div class="record-item" style="padding:10px 0;">
+          <div class="record-date">
+            <div class="record-day">${d.getDate()}</div>
+            <div class="record-weekday">${week}</div>
+          </div>
+          <div class="record-content">
+            <span class="record-status ${statusClass}">${statusText}</span>
+            ${mistakeTags ? `<div class="record-mistakes">${mistakeTags}</div>` : ''}
+            ${r.note ? `<div class="record-note">${escapeHtml(r.note)}</div>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  document.getElementById(pageId === 'pageAnchorView' ? 'anchorViewContent' : 'shareContent').innerHTML = `
+    <div class="card">
+      <div style="text-align:center; padding:10px 0;">
+        <div style="font-size:22px; font-weight:600;">${escapeHtml(anchor.name)}</div>
+        <div style="font-size:13px; color:#888; margin-top:4px;">试用期: ${anchor.startDate} 至 ${anchor.endDate}</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 试用进度</div>
+      <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px;">
+        <span>已完成 ${progress}%</span>
+        <span>第${passedDays}/${totalDays}天</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">📈 统计数据</div>
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-number">${stats.present}</div><div class="stat-label">正常出勤</div></div>
+        <div class="stat-box"><div class="stat-number warning">${stats.absent}</div><div class="stat-label">缺勤</div></div>
+        <div class="stat-box"><div class="stat-number info">${stats.late}</div><div class="stat-label">迟到/早退</div></div>
+        <div class="stat-box"><div class="stat-number">${stats.leave}</div><div class="stat-label">请假</div></div>
+        <div class="stat-box"><div class="stat-number warning">${stats.mistakes}</div><div class="stat-label">失误次数</div></div>
+        <div class="stat-box"><div class="stat-number">${stats.attendanceRate}%</div><div class="stat-label">出勤率</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">📝 近期记录</div>
+      ${recordsHtml}
+      ${records.length > 30 ? '<div style="text-align:center; padding:10px; color:#888; font-size:13px;">仅显示最近30条记录</div>' : ''}
+    </div>
+  `;
+}
+
+// ==================== 分享链接 ====================
+function updateShareLink() {
+  const anchor = data.anchors.find(a => a.id === currentAnchorId);
+  if (!anchor) return;
+  const records = data.records.filter(r => r.anchorId === anchor.id);
+  const payload = { anchor, records, key: 'share' };
+  const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
+  const url = location.origin + location.pathname + '?share=' + encoded;
+  document.getElementById('shareUrl').textContent = url;
+}
+
+function copyShareLink() {
+  const text = document.getElementById('shareUrl').textContent;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('链接已复制'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('链接已复制');
+  }
+}
+
+// ==================== 数据管理 ====================
+function showDataManage() {
+  showPage('pageDataManage');
+}
+
+function exportData() {
+  const blob = new Blob([JSON.stringify({ data, settings }, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '主播考勤数据_' + formatDate(new Date()) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('数据已导出');
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const obj = JSON.parse(e.target.result);
+      if (obj.data) data = obj.data;
+      if (obj.settings) settings = obj.settings;
+      saveData();
+      showToast('数据已恢复');
+      renderAnchorList();
+      renderAdminStats();
+      showPage('pageHome', true);
+    } catch(err) {
+      showToast('文件格式错误');
+    }
+  };
+  reader.readAsText(file);
+  input.value = '';
+}
+
+function clearAllData() {
+  if (!confirm('确定要清空所有数据吗？此操作不可恢复！')) return;
+  if (!confirm('再次确认：所有主播和记录将被永久删除！')) return;
+  data = { anchors: [], records: [] };
+  saveData();
+  showToast('数据已清空');
+  showPage('pageHome', true);
+}
+
+// ==================== 工具函数 ====================
+function generateId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+function formatDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2000);
+}
+
+// ==================== 初始化 ====================
+function init() {
+  initData();
+
+  // 检查分享链接
+  const params = new URLSearchParams(location.search);
+  const shareParam = params.get('share');
+  if (shareParam) {
+    try {
+      const payload = JSON.parse(decodeURIComponent(atob(shareParam)));
+      if (payload.anchor) {
+        renderAnchorView(payload.anchor, 'pageShare', payload.records || []);
+        showPage('pageShare', true);
+        return;
+      }
+    } catch(e) {}
+  }
+
+  showPage('pageHome', true);
+}
+
+init();
+</script>
+</body>
+</html>
