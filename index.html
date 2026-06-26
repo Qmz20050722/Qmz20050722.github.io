@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="description" content="主播试用期考勤与失误记录管理系统">
+<meta name="description" content="主播考勤与失误记录管理系统">
 <meta name="theme-color" content="#07c160">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <title>主播考勤与失误统计</title>
@@ -448,14 +448,14 @@
   <div class="header" id="header">
     <button class="back-btn hidden" id="backBtn" onclick="goBack()">← 返回</button>
     <h1 id="headerTitle">主播考勤统计</h1>
-    <div class="subtitle" id="headerSubtitle">试用期管理与记录</div>
+    <div class="subtitle" id="headerSubtitle">主播管理与记录</div>
   </div>
 
   <!-- 首页 -->
   <div class="page active" id="pageHome">
     <div class="home-logo">📊</div>
     <div class="home-title">主播考勤统计</div>
-    <div class="home-subtitle">试用期出勤与失误记录管理</div>
+    <div class="home-subtitle">主播出勤与失误记录管理</div>
     <div class="home-btns">
       <button class="home-btn" onclick="showAdminLogin()">
         <div class="home-btn-icon" style="background:#e8f5e9;">🔐</div>
@@ -566,11 +566,11 @@
         <input type="text" class="form-input" id="anchorName" placeholder="请输入主播姓名">
       </div>
       <div class="form-group">
-        <label class="form-label">试用期开始日期 *</label>
+        <label class="form-label">试用期开始日期（选填）</label>
         <input type="date" class="form-input" id="anchorStartDate">
       </div>
       <div class="form-group">
-        <label class="form-label">试用期结束日期 *</label>
+        <label class="form-label">试用期结束日期（选填）</label>
         <input type="date" class="form-input" id="anchorEndDate">
       </div>
       <div class="form-group">
@@ -653,6 +653,22 @@
       <input type="file" class="form-input" id="importFile" accept=".json" onchange="importData(this)">
     </div>
     <div class="card">
+      <div class="card-title">🔐 修改管理密码</div>
+      <div class="form-group">
+        <label class="form-label">当前密码</label>
+        <input type="password" class="form-input" id="oldPassword" placeholder="输入当前密码">
+      </div>
+      <div class="form-group">
+        <label class="form-label">新密码</label>
+        <input type="password" class="form-input" id="newPassword" placeholder="输入新密码">
+      </div>
+      <div class="form-group">
+        <label class="form-label">确认新密码</label>
+        <input type="password" class="form-input" id="confirmPassword" placeholder="再次输入新密码">
+      </div>
+      <button class="btn btn-primary btn-block" onclick="changePassword()">保存新密码</button>
+    </div>
+    <div class="card">
       <div class="card-title">⚠️ 危险操作</div>
       <button class="btn btn-danger btn-block" onclick="clearAllData()">清空所有数据</button>
     </div>
@@ -684,6 +700,137 @@ let settings = { adminPassword: '123456' };
 let currentAnchorId = null;
 let currentMonth = new Date();
 let pageStack = [];
+let cloudReady = false;
+let dataLoaded = false;
+let lastSyncTime = 0;
+
+// ==================== GitHub 配置 ====================
+// 请把下面的 token 替换成你自己的 GitHub Personal Access Token
+const GITHUB_CONFIG = {
+  token: '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',
+  owner: 'Qmz20050722',
+  repo: 'Qmz20050722.github.io',
+  path: 'data.json'
+};
+
+function initGitHub() {
+  if (GITHUB_CONFIG.token === 'ghp_YOUR_TOKEN') {
+    console.warn('GitHub Token 未设置，将使用本地存储');
+    return false;
+  }
+  cloudReady = true;
+  return true;
+}
+
+async function loadFromGitHub() {
+  try {
+    const headers = {};
+    if (GITHUB_CONFIG.token !== 'ghp_YOUR_TOKEN') {
+      headers['Authorization'] = 'token ' + GITHUB_CONFIG.token;
+    }
+    const res = await fetch('https://api.github.com/repos/' + GITHUB_CONFIG.owner + '/' + GITHUB_CONFIG.repo + '/contents/' + GITHUB_CONFIG.path, { headers });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error('GitHub API ' + res.status);
+    const fileData = await res.json();
+    const content = atob(fileData.content.replace(/\n/g, ''));
+    return JSON.parse(content);
+  } catch(e) {
+    console.error('GitHub加载失败:', e);
+    return null;
+  }
+}
+
+async function saveToGitHub() {
+  if (GITHUB_CONFIG.token === 'ghp_YOUR_TOKEN') return false;
+  try {
+    const getRes = await fetch('https://api.github.com/repos/' + GITHUB_CONFIG.owner + '/' + GITHUB_CONFIG.repo + '/contents/' + GITHUB_CONFIG.path, {
+      headers: { 'Authorization': 'token ' + GITHUB_CONFIG.token }
+    });
+    let sha = null;
+    if (getRes.ok) {
+      const fileData = await getRes.json();
+      sha = fileData.sha;
+    }
+    const jsonStr = JSON.stringify({ data: data, settings: settings });
+    const base64Content = btoa(unescape(encodeURIComponent(jsonStr)));
+    const body = { message: 'update attendance data', content: base64Content };
+    if (sha) body.sha = sha;
+    const putRes = await fetch('https://api.github.com/repos/' + GITHUB_CONFIG.owner + '/' + GITHUB_CONFIG.repo + '/contents/' + GITHUB_CONFIG.path, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'token ' + GITHUB_CONFIG.token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    if (putRes.ok) {
+      lastSyncTime = Date.now();
+    }
+    return putRes.ok;
+  } catch(e) {
+    console.error('GitHub保存失败:', e);
+    return false;
+  }
+}
+
+async function syncFromCloud() {
+  if (!cloudReady) return;
+  showToast('正在同步数据...');
+  const result = await loadFromGitHub();
+  if (result) {
+    if (result.data) data = result.data;
+    if (result.settings) settings = result.settings;
+  }
+  dataLoaded = true;
+  showToast('数据同步完成');
+  renderAnchorList();
+  renderAdminStats();
+  const shareParam = new URLSearchParams(location.search).get('share');
+  const viewParam = new URLSearchParams(location.search).get('view');
+  if (!shareParam && !viewParam) {
+    showPage('pageHome', true);
+  }
+  startAutoSync();
+}
+
+function startAutoSync() {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && cloudReady) {
+      loadFromGitHub().then(result => {
+        if (result) {
+          if (result.data) data = result.data;
+          if (result.settings) settings = result.settings;
+          renderAnchorList();
+          renderAdminStats();
+          if (currentAnchorId) renderAnchorDetail();
+          if (document.getElementById('pageAnchorSelect').classList.contains('active')) {
+            renderAnchorSelectList();
+          }
+        }
+      });
+    }
+  });
+  setInterval(() => {
+    if (cloudReady && !document.hidden) {
+      loadFromGitHub().then(result => {
+        if (result) {
+          if (result.data) data = result.data;
+          if (result.settings) settings = result.settings;
+          if (document.getElementById('pageAdmin').classList.contains('active')) {
+            renderAnchorList();
+            renderAdminStats();
+          }
+          if (document.getElementById('pageAnchorDetail').classList.contains('active')) {
+            renderAnchorDetail();
+          }
+          if (document.getElementById('pageAnchorSelect').classList.contains('active')) {
+            renderAnchorSelectList();
+          }
+        }
+      });
+    }
+  }, 10000);
+}
 
 function loadData() {
   try {
@@ -697,15 +844,19 @@ function loadData() {
 }
 
 function saveData() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  if (!cloudReady) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  }
 }
 
 function initData() {
-  loadData();
-  // 默认数据演示（首次使用）
-  if (data.anchors.length === 0) {
-    // 不预填，保持空白
+  const ghOk = initGitHub();
+  if (ghOk) {
+    syncFromCloud();
+  } else {
+    loadData();
+    dataLoaded = true;
   }
 }
 
@@ -743,7 +894,7 @@ function updateHeader(pageId) {
   const subtitle = document.getElementById('headerSubtitle');
 
   const titles = {
-    pageHome: ['主播考勤统计', '试用期管理与记录'],
+    pageHome: ['主播考勤统计', '主播管理与记录'],
     pageAdminLogin: ['管理员登录', ''],
     pageAdmin: ['管理员后台', '主播管理与记录'],
     pageAnchorDetail: ['主播详情', ''],
@@ -806,11 +957,12 @@ function renderAnchorList() {
   }
   container.innerHTML = data.anchors.map(a => {
     const stats = getAnchorStats(a.id);
+    const dateRange = a.startDate && a.endDate ? `${a.startDate} 至 ${a.endDate}` : '长期记录';
     return `
       <div class="list-item" onclick="showAnchorDetail('${a.id}')">
         <div class="list-item-info">
           <div class="list-item-title">${escapeHtml(a.name)}</div>
-          <div class="list-item-desc">${a.startDate} 至 ${a.endDate} · 出勤${stats.present}天 · 失误${stats.mistakes}次</div>
+          <div class="list-item-desc">${dateRange} · 出勤${stats.present}天 · 失误${stats.mistakes}次</div>
         </div>
         <div class="list-item-actions" onclick="event.stopPropagation()">
           <button class="btn btn-primary btn-sm" onclick="showAnchorDetail('${a.id}')">查看</button>
@@ -852,8 +1004,8 @@ function saveAnchor() {
   const endDate = document.getElementById('anchorEndDate').value;
   const note = document.getElementById('anchorNote').value.trim();
 
-  if (!name || !startDate || !endDate) {
-    showToast('请填写完整信息');
+  if (!name) {
+    showToast('请填写主播姓名');
     return;
   }
 
@@ -861,11 +1013,14 @@ function saveAnchor() {
     const a = data.anchors.find(x => x.id === id);
     if (a) {
       a.name = name; a.startDate = startDate; a.endDate = endDate; a.note = note;
+      saveToGitHub();
     }
   } else {
-    data.anchors.push({ id: generateId(), name, startDate, endDate, note, createdAt: new Date().toISOString() });
+    const newAnchor = { id: generateId(), name, startDate, endDate, note, createdAt: new Date().toISOString() };
+    data.anchors.push(newAnchor);
+    saveToGitHub();
   }
-  saveData();
+  if (!cloudReady) saveData();
   goBack();
   renderAnchorList();
   renderAdminStats();
@@ -876,7 +1031,8 @@ function deleteAnchor(id) {
   if (!confirm('确定要删除该主播及其所有记录吗？此操作不可恢复！')) return;
   data.anchors = data.anchors.filter(a => a.id !== id);
   data.records = data.records.filter(r => r.anchorId !== id);
-  saveData();
+  saveToGitHub();
+  if (!cloudReady) saveData();
   renderAnchorList();
   renderAdminStats();
   showToast('已删除');
@@ -895,26 +1051,42 @@ function renderAnchorDetail() {
   if (!anchor) return;
 
   const stats = getAnchorStats(anchor.id);
-  const totalDays = Math.max(1, Math.ceil((new Date(anchor.endDate) - new Date(anchor.startDate)) / (1000*60*60*24)) + 1);
-  const passedDays = Math.min(totalDays, Math.max(0, Math.ceil((new Date() - new Date(anchor.startDate)) / (1000*60*60*24)) + 1));
-  const progress = Math.round((passedDays / totalDays) * 100);
+  const hasTrial = anchor.startDate && anchor.endDate;
+  let trialHtml = '';
+  if (hasTrial) {
+    const totalDays = Math.max(1, Math.ceil((new Date(anchor.endDate) - new Date(anchor.startDate)) / (1000*60*60*24)) + 1);
+    const passedDays = Math.min(totalDays, Math.max(0, Math.ceil((new Date() - new Date(anchor.startDate)) / (1000*60*60*24)) + 1));
+    const progress = Math.round((passedDays / totalDays) * 100);
+    trialHtml = `
+      <div class="card-title">📅 试用期进度<span class="right">第${passedDays}/${totalDays}天 (${progress}%)</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="trialProgress" style="width:${progress}%"></div></div>
+      <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:12px; color:#888;">
+        <span>${anchor.startDate}</span>
+        <span>${anchor.endDate}</span>
+      </div>
+    `;
+  } else {
+    trialHtml = `
+      <div class="card-title">📅 考勤期间<span class="right">长期记录</span></div>
+      <div style="font-size:13px; color:#888; margin-top:6px;">未设置试用期，持续记录考勤与失误</div>
+    `;
+  }
 
+  const dateDesc = hasTrial ? `试用期: ${anchor.startDate} 至 ${anchor.endDate}` : '长期考勤记录';
   document.getElementById('anchorDetailHeader').innerHTML = `
     <div class="card">
       <div class="list-item" style="padding:0;">
         <div class="list-item-info">
           <div class="list-item-title" style="font-size:20px;">${escapeHtml(anchor.name)}</div>
-          <div class="list-item-desc">试用期: ${anchor.startDate} 至 ${anchor.endDate}</div>
+          <div class="list-item-desc">${dateDesc}</div>
           ${anchor.note ? `<div class="list-item-desc" style="margin-top:4px;">备注: ${escapeHtml(anchor.note)}</div>` : ''}
         </div>
       </div>
     </div>
   `;
 
-  document.getElementById('trialProgress').style.width = progress + '%';
-  document.getElementById('trialDaysText').textContent = `第${passedDays}/${totalDays}天 (${progress}%)`;
-  document.getElementById('trialStart').textContent = anchor.startDate;
-  document.getElementById('trialEnd').textContent = anchor.endDate;
+  const trialCard = document.getElementById('trialProgress').parentElement;
+  trialCard.innerHTML = trialHtml;
 
   document.getElementById('anchorStats').innerHTML = `
     <div class="stat-box"><div class="stat-number">${stats.present}</div><div class="stat-label">正常出勤</div></div>
@@ -1020,10 +1192,13 @@ function saveRecord() {
     existing.attendance = attendance;
     existing.mistakes = mistakes;
     existing.note = note;
+    saveToGitHub();
   } else {
-    data.records.push({ id: generateId(), anchorId, date, attendance, mistakes, note, createdAt: new Date().toISOString() });
+    const newRecord = { id: generateId(), anchorId, date, attendance, mistakes, note, createdAt: new Date().toISOString() };
+    data.records.push(newRecord);
+    saveToGitHub();
   }
-  saveData();
+  if (!cloudReady) saveData();
   goBack();
   renderAnchorDetail();
   showToast('记录已保存');
@@ -1066,7 +1241,8 @@ function renderRecordList() {
 function deleteRecord(id) {
   if (!confirm('确定删除这条记录？')) return;
   data.records = data.records.filter(r => r.id !== id);
-  saveData();
+  saveToGitHub();
+  if (!cloudReady) saveData();
   renderRecordList();
   renderCalendar();
   renderAnchorStats();
@@ -1083,15 +1259,18 @@ function renderAnchorSelectList() {
     container.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div>暂无可查看的主播</div></div>';
     return;
   }
-  container.innerHTML = data.anchors.map(a => `
-    <div class="list-item" onclick="viewAnchor('${a.id}')">
-      <div class="list-item-info">
-        <div class="list-item-title">${escapeHtml(a.name)}</div>
-        <div class="list-item-desc">${a.startDate} 至 ${a.endDate}</div>
+  container.innerHTML = data.anchors.map(a => {
+    const dateRange = a.startDate && a.endDate ? `${a.startDate} 至 ${a.endDate}` : '长期记录';
+    return `
+      <div class="list-item" onclick="viewAnchor('${a.id}')">
+        <div class="list-item-info">
+          <div class="list-item-title">${escapeHtml(a.name)}</div>
+          <div class="list-item-desc">${dateRange}</div>
+        </div>
+        <div style="color:#07c160;">查看 ›</div>
       </div>
-      <div style="color:#07c160;">查看 ›</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function viewAnchor(id) {
@@ -1107,9 +1286,23 @@ function renderAnchorView(anchor, pageId, externalRecords) {
     .sort((a, b) => new Date(b.date) - new Date(a.date));
 
   const stats = computeAnchorStats(records);
-  const totalDays = Math.max(1, Math.ceil((new Date(anchor.endDate) - new Date(anchor.startDate)) / (1000*60*60*24)) + 1);
-  const passedDays = Math.min(totalDays, Math.max(0, Math.ceil((new Date() - new Date(anchor.startDate)) / (1000*60*60*24)) + 1));
-  const progress = Math.round((passedDays / totalDays) * 100);
+  const hasTrial = anchor.startDate && anchor.endDate;
+  let trialCardHtml = '';
+  if (hasTrial) {
+    const totalDays = Math.max(1, Math.ceil((new Date(anchor.endDate) - new Date(anchor.startDate)) / (1000*60*60*24)) + 1);
+    const passedDays = Math.min(totalDays, Math.max(0, Math.ceil((new Date() - new Date(anchor.startDate)) / (1000*60*60*24)) + 1));
+    const progress = Math.round((passedDays / totalDays) * 100);
+    trialCardHtml = `
+      <div class="card">
+        <div class="card-title">📊 试用进度</div>
+        <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px;">
+          <span>已完成 ${progress}%</span>
+          <span>第${passedDays}/${totalDays}天</span>
+        </div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
+      </div>
+    `;
+  }
 
   const statusMap = { present: ['✅ 正常出勤', 'status-present'], absent: ['❌ 缺勤', 'status-absent'], late: ['⚠️ 迟到/早退', 'status-late'], leave: ['🏥 请假', 'status-leave'] };
 
@@ -1134,21 +1327,15 @@ function renderAnchorView(anchor, pageId, externalRecords) {
       `;
     }).join('');
 
+  const dateLine = hasTrial ? `试用期: ${anchor.startDate} 至 ${anchor.endDate}` : '长期考勤记录';
   document.getElementById(pageId === 'pageAnchorView' ? 'anchorViewContent' : 'shareContent').innerHTML = `
     <div class="card">
       <div style="text-align:center; padding:10px 0;">
         <div style="font-size:22px; font-weight:600;">${escapeHtml(anchor.name)}</div>
-        <div style="font-size:13px; color:#888; margin-top:4px;">试用期: ${anchor.startDate} 至 ${anchor.endDate}</div>
+        <div style="font-size:13px; color:#888; margin-top:4px;">${dateLine}</div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-title">📊 试用进度</div>
-      <div style="display:flex; justify-content:space-between; font-size:14px; margin-bottom:6px;">
-        <span>已完成 ${progress}%</span>
-        <span>第${passedDays}/${totalDays}天</span>
-      </div>
-      <div class="progress-bar"><div class="progress-fill" style="width:${progress}%"></div></div>
-    </div>
+    ${trialCardHtml}
     <div class="card">
       <div class="card-title">📈 统计数据</div>
       <div class="stats-grid">
@@ -1172,10 +1359,8 @@ function renderAnchorView(anchor, pageId, externalRecords) {
 function updateShareLink() {
   const anchor = data.anchors.find(a => a.id === currentAnchorId);
   if (!anchor) return;
-  const records = data.records.filter(r => r.anchorId === anchor.id);
-  const payload = { anchor, records, key: 'share' };
-  const encoded = btoa(encodeURIComponent(JSON.stringify(payload)));
-  const url = location.origin + location.pathname + '?share=' + encoded;
+  // 新格式：使用 view 参数，数据从 Firebase 实时读取
+  const url = location.origin + location.pathname + '?view=' + encodeURIComponent(anchor.id);
   document.getElementById('shareUrl').textContent = url;
 }
 
@@ -1217,9 +1402,15 @@ function importData(input) {
   reader.onload = e => {
     try {
       const obj = JSON.parse(e.target.result);
-      if (obj.data) data = obj.data;
-      if (obj.settings) settings = obj.settings;
-      saveData();
+      if (obj.data) {
+        data = obj.data;
+        if (cloudReady) saveToGitHub();
+      }
+      if (obj.settings) {
+        settings = obj.settings;
+        if (cloudReady) saveToGitHub();
+      }
+      if (!cloudReady) saveData();
       showToast('数据已恢复');
       renderAnchorList();
       renderAdminStats();
@@ -1232,11 +1423,39 @@ function importData(input) {
   input.value = '';
 }
 
+function changePassword() {
+  const oldPwd = document.getElementById('oldPassword').value;
+  const newPwd = document.getElementById('newPassword').value;
+  const confirmPwd = document.getElementById('confirmPassword').value;
+
+  if (oldPwd !== settings.adminPassword) {
+    showToast('当前密码错误');
+    return;
+  }
+  if (!newPwd || newPwd.length < 4) {
+    showToast('新密码至少4位');
+    return;
+  }
+  if (newPwd !== confirmPwd) {
+    showToast('两次输入的新密码不一致');
+    return;
+  }
+
+  settings.adminPassword = newPwd;
+  saveToGitHub();
+  if (!cloudReady) saveData();
+  document.getElementById('oldPassword').value = '';
+  document.getElementById('newPassword').value = '';
+  document.getElementById('confirmPassword').value = '';
+  showToast('密码修改成功');
+}
+
 function clearAllData() {
   if (!confirm('确定要清空所有数据吗？此操作不可恢复！')) return;
   if (!confirm('再次确认：所有主播和记录将被永久删除！')) return;
   data = { anchors: [], records: [] };
-  saveData();
+  if (cloudReady) saveToGitHub();
+  if (!cloudReady) saveData();
   showToast('数据已清空');
   showPage('pageHome', true);
 }
@@ -1266,7 +1485,7 @@ function showToast(msg) {
 function init() {
   initData();
 
-  // 检查分享链接
+  // 检查分享链接（旧格式兼容）
   const params = new URLSearchParams(location.search);
   const shareParam = params.get('share');
   if (shareParam) {
@@ -1280,7 +1499,48 @@ function init() {
     } catch(e) {}
   }
 
-  showPage('pageHome', true);
+  // 新格式分享链接：?view=anchorId
+  const viewParam = params.get('view');
+  if (viewParam) {
+    if (cloudReady) {
+      // 等待 Firebase 数据加载
+      const checkAndRender = setInterval(() => {
+        const anchor = data.anchors.find(a => a.id === viewParam);
+        if (anchor) {
+          clearInterval(checkAndRender);
+          renderAnchorView(anchor, 'pageShare');
+          showPage('pageShare', true);
+        }
+      }, 500);
+      // 10秒后超时
+      setTimeout(() => clearInterval(checkAndRender), 10000);
+    } else {
+      const anchor = data.anchors.find(a => a.id === viewParam);
+      if (anchor) {
+        renderAnchorView(anchor, 'pageShare');
+        showPage('pageShare', true);
+        return;
+      }
+    }
+  }
+
+  if (!dataLoaded) {
+    // 等待数据加载后再显示首页
+    const checkLoaded = setInterval(() => {
+      if (dataLoaded) {
+        clearInterval(checkLoaded);
+        showPage('pageHome', true);
+      }
+    }, 300);
+    setTimeout(() => {
+      clearInterval(checkLoaded);
+      if (!document.querySelector('.page.active') || document.getElementById('pageHome').classList.contains('active')) {
+        showPage('pageHome', true);
+      }
+    }, 5000);
+  } else {
+    showPage('pageHome', true);
+  }
 }
 
 init();
