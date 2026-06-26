@@ -853,6 +853,7 @@ function saveData() {
 function initData() {
   const ghOk = initGitHub();
   if (ghOk) {
+    loadData(); // 先加载本地数据作为备份
     syncFromCloud();
   } else {
     loadData();
