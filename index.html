@@ -714,7 +714,7 @@ const GITHUB_CONFIG = {
 };
 
 function initGitHub() {
-  if (GITHUB_CONFIG.token === 'ghp_YOUR_TOKEN') {
+  if (GITHUB_CONFIG.token === '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') {
     console.warn('GitHub Token 未设置，将使用本地存储');
     return false;
   }
@@ -725,7 +725,7 @@ function initGitHub() {
 async function loadFromGitHub() {
   try {
     const headers = {};
-    if (GITHUB_CONFIG.token !== 'ghp_YOUR_TOKEN') {
+    if (GITHUB_CONFIG.token !== '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') {
       headers['Authorization'] = 'token ' + GITHUB_CONFIG.token;
     }
     const res = await fetch('https://api.github.com/repos/' + GITHUB_CONFIG.owner + '/' + GITHUB_CONFIG.repo + '/contents/' + GITHUB_CONFIG.path, { headers });
@@ -741,7 +741,7 @@ async function loadFromGitHub() {
 }
 
 async function saveToGitHub() {
-  if (GITHUB_CONFIG.token === 'ghp_YOUR_TOKEN') return false;
+  if (GITHUB_CONFIG.token === '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') return false;
   try {
     const getRes = await fetch('https://api.github.com/repos/' + GITHUB_CONFIG.owner + '/' + GITHUB_CONFIG.repo + '/contents/' + GITHUB_CONFIG.path, {
       headers: { 'Authorization': 'token ' + GITHUB_CONFIG.token }
